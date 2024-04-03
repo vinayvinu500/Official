@@ -1,0 +1,66 @@
+<!-- https://medium.com/@AgnesMbiti/introduction-ede9e9af903a -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Python Code Editor</title>
+
+    <link rel="stylesheet" href="main.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ace-builds@1.4.12/src/ace.css" type="text/css" media="screen" charset="utf-8">
+    <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.4.12/src/ace.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script src="app.js" type="text/javascript"></script>
+</head>
+<body>
+    <h1>Python Code Editor</h1>
+
+    <h2 id="salutation"></h2>
+
+    <div id="editor"></div>
+
+    <button onclick="runCode()">Run</button>
+
+    <div id="outputArea">
+        <h3>Output:</h3>
+        <pre id="output"></pre>
+    </div>
+    <script>
+        // Initialize Ace code editor
+        var editor = ace.edit("editor");
+        editor.setTheme("ace/theme/monokai");
+        editor.getSession().setMode("ace/mode/python");
+
+
+
+        editor.setFontSize("16px");
+        // Function to run the code in the Ace editor
+        function runCode() {
+            var code = editor.getValue();
+
+            // Make an AJAX request to the Django server for code execution
+            $.ajax({
+                type: "POST",
+                url: "/run_code/", // URL of your Django view
+                headers: {
+                    'X-CSRFToken': csrftoken  // Include CSRF token in the request header
+                },
+                data: {
+                    code: code,
+                    language: 'sql' // Fixed to Python
+                },
+                success: function(data) {
+                    if (data.result) {
+                        document.getElementById("output").innerText = data.result;
+                    } else {
+                        document.getElementById("output").innerText = data.error;
+                    }
+                },
+                error: function() {
+                    document.getElementById("output").innerText = "Error communicating with the server.";
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+# databases.py
+"""
+# setup mysql database # https://fastapi.tiangolo.com/advanced/events/#alternative-events-deprecated (on_event is deprecated)
+# async def lifespan(app: FastAPI): # https://fastapi.tiangolo.com/advanced/events/#alternative-events-deprecated (on_event is deprecated)
+    # Create the database tables
+    # async with engine.begin() as conn:
+    #     await conn.run_sync(Base.metadata.create_all)
+    # create_database_if_not_exists()
+    # asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy()) # https://stackoverflow.com/questions/45600579/asyncio-event-loop-is-closed-when-getting-loop
+    # asyncio.get_event_loop().is_running()
+    
+    # if sys.system=='Windows':
+    # loop = asyncio.new_event_loop()
+    # asyncio.set_event_loop(asyncio.new_event_loop())
+    # asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    # await init_db()
+    # yield
+
+    
+
+# fix yelling at me error
+# from functools import wraps
+ 
+# from asyncio.proactor_events import _ProactorBasePipeTransport
+ 
+# def silence_event_loop_closed(func): # https://pythonalgos.com/runtimeerror-event-loop-is-closed-asyncio-fix/
+#     @wraps(func)
+#     def wrapper(self, *args, **kwargs):
+#         try:
+#             return func(self, *args, **kwargs)
+#         except RuntimeError as e:
+#             if str(e) != 'Event loop is closed':
+#                 raise
+#     return wrapper
+ 
+# _ProactorBasePipeTransport.__del__ = silence_event_loop_closed(_ProactorBasePipeTransport.__del__)
+# fix yelling at me error end
+"""
+
+# main.py
+if __name__ == "__main__":
+    try:
+        import asyncio
+        loop = asyncio.get_event_loop()
+        # Setup app here, e.g., `loop.run_until_complete(some_startup_task())`
+        loop.run_until_complete(app_lifespan(app))  # If app_lifespan is the way you manage lifecycle events
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy()) # https://stackoverflow.com/questions/45600579/asyncio-event-loop-is-closed-when-getting-loop
+    finally:
+        loop.close()
+
+<!-- Display test results dynamically -->
+<!-- {% if test_results %}
+<h3>Test Results</h3>
+<p>{{ test_results }}</p>
+{% endif %} -->
+
+<!-- <table>
+                <thead>
+                    <tr>
+                        {% for column in results[0].keys() %}
+                        <th>{{ column }}</th>
+                        {% endfor %}
+                    </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in results %}
+                        <tr>
+                            {% for cell in row.values() %}
+                            <td>{{ cell }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table> -->

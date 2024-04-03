@@ -1,0 +1,244 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    max-width: 70%; /* Consistent max-width for the container */
+    margin: auto; /* Center the container */
+    overflow-y: auto; /* Allow vertical scrolling */
+}
+
+
+/* Assuming .test-results is also a child of .container, it should naturally take 100% width of the container */
+#test-results {
+    text-align: left;
+    padding: 10px 0; /* Adjusted padding to not affect width */
+    margin-top: 20px;
+    box-sizing: border-box; /* Ensures padding is included in the element's total width */
+    overflow-x: auto; /* Allows horizontal scrolling if the table is wider than the container */
+}
+
+.problem-description, .database-schema, .solutions-container {
+    margin: 20px 0;
+}
+
+.ace-editor { 
+    height: 600px; /* Adjusted height */
+    width: 100%;
+}
+
+.solutions-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px; /* Added gap between elements */
+}
+
+.user-query, .sample-solution {
+    flex: 1; /* Flex basis to occupy equal space */
+    margin-right: 10px; /* Adjust margin to the right for spacing */
+}
+
+/* Remove specific last-child targeting if not required */
+.user-query:last-child, .sample-solution:last-child {
+    margin-right: 0; /* Remove margin from the last element if it applies */
+}
+
+.actions {
+    display: flex;
+    justify-content: space-between; /* Adjust the buttons to fill the space */
+    margin: 10px 0; /* Add top and bottom margin for spacing */
+    padding: 0; /* Reset any padding */
+}
+
+.test, .submit {
+    width: 49%; /* Set width to fill space similar to user-query and sample-solution */
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: none;
+    background-color: #007bff;
+    color: white;
+    text-align: center;
+}
+
+/* Jodit Editor Height Adjustment */
+/* #editor {
+    height: 600px; 
+} */
+
+/* Adjusting .solutions-container and its children alignment */
+.solutions-container {
+    display: flex;
+    justify-content: space-between; /* Ensure there is space between the children */
+    gap: 20px; /* Add gap for visual spacing */
+}
+
+.user-query, .sample-solution {
+    flex-basis: 48%; /* Adjust the flex-basis to control the width, keeping in mind the gap */
+}
+
+
+.test:hover, .submit:hover {
+    background-color: #0056b3;
+}
+
+.error {
+    color: #721c24; /* Darker shade of red for better contrast */
+    background-color: #f8d7da; /* Soft red background */
+    border: 1px solid #f5c6cb; /* Slightly darker border for definition */
+    padding: 10px;
+    border-radius: 5px;
+    margin: 20px 0;
+    font-weight: bold; /* Make text bold for emphasis */
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.results-table, .results-table th, .results-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.results-table th {
+  background-color: #f2f2f2;
+}
+
+.results-table tr:nth-child(even) {background-color: #f9f9f9;}
+
+.success {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: green;
+    color: white;
+    margin: 20px 0; /* Adjust spacing around the message */
+    font-size: 16px; /* Match the button text size or adjust as needed */
+    position: relative;
+}
+
+/* Additional styling for .results-table and .error for consistency and layout */
+.error, .success, .results-table {
+    width: 100%; /* Ensure full container width is used */
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+.database-schema {
+    margin: 20px 0;
+    padding: 10px;
+    background-color: #f9f9f9; /* Light background as in title input */
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Soft shadow for depth */
+}
+
+.database-schema h2, .title-input h2 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 24px;
+}
+
+.database-schema .ace-editor, .title-input input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 16px;
+}
+
+/* Placeholder styling and focus effect for consistency */
+.database-schema .ace-editor::placeholder, .title-input input[type="text"]::placeholder {
+    color: #aaa;
+}
+
+.database-schema .ace-editor:focus, .title-input input[type="text"]:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.schema-file-selection {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    background-color: #f2f2f2; /* Light grey background */
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px; /* Space before the Ace Editor */
+}
+
+.schema-file-selection select, .schema-file-selection input[type="text"] {
+    flex-grow: 1;
+    margin-right: 10px; /* Space between the select and input */
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: white;
+}
+
+.schema-file-selection select {
+    margin-right: 20px; /* Additional space if needed */
+}
+
+.schema-file-selection input[type="text"] {
+    flex-basis: 40%; /* Adjust based on your preference */
+}
+
+/* Styling for options - might need to be adjusted based on browser and OS */
+.schema-file-selection option {
+    padding: 10px; /* Makes options easier to click on mobile */
+}
+
+.title-input {
+    margin: 20px 0;
+    padding: 10px;
+    background-color: #f9f9f9; /* Light background to highlight the section */
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Soft shadow for depth */
+}
+
+.title-input h2 {
+    margin: 0 0 10px 0; /* Reduce space below the heading */
+    color: #333; /* Dark gray for text for better readability */
+    font-size: 24px; /* Slightly larger font size for the heading */
+}
+
+.title-input input[type="text"]{
+    width: 100%; /* Full width to fit the container */
+    padding: 8px 10px; /* Adequate padding for input text */
+    border: 1px solid #ccc; /* Subtle border */
+    border-radius: 4px; /* Rounded corners */
+    box-sizing: border-box; /* Ensure padding doesn't affect overall width */
+    font-size: 16px; /* Slightly larger font size for readability */
+}
+
+.title-input input[type="text"]::placeholder {
+    color: #aaa; /* Lighter color for the placeholder text */
+}
+
+.title-input input[type="text"]:focus {
+    border-color: #007bff; /* Highlight color when input is focused */
+    outline: none; /* Remove default focus outline */
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25); /* Subtle glow effect */
+}
+
+#difficulty-selector {
+    width: 100%; /* Full width to fit the container */
+    padding: 8px 10px; /* Adequate padding for input text */
+    border: 1px solid #ccc; /* Subtle border */
+    border-radius: 4px; /* Rounded corners */
+    box-sizing: border-box; /* Ensure padding doesn't affect overall width */
+    font-size: 16px; /* Slightly larger font size for readability */
+}

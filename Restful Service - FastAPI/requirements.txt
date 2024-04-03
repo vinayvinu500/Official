@@ -1,0 +1,8 @@
+# pip install -r requirements.txt -q
+fastapi
+uvicorn
+sqlalchemy
+passlib
+bcrypt==4.0.1
+python-jose
+python-multipart

@@ -1,0 +1,29 @@
+# Project-Title: Coding Platform with AI Hints
+
+# Problem-Statement: 
+- build a web application like Hackerrank or Leetcode platform where on the lefthand-side we have description (problem) along with an example 
+- on the righthand-side we have coding interface where the user can type and submit the code
+- bottom-right below we do have two sections "Test" or "Hints"
+- "Test" will be testing the code based on the criteria given aka test-cases 
+- "Hints" will be generated or suggest or improve the existing code  
+
+# Why FastAPI as a service
+Asynchronous Support: This is crucial for a coding platform that needs to handle potentially expensive I/O operations efficiently.
+Performance: FastAPI's performance benefits can be critical as your platform scales and needs to handle multiple simultaneous requests.
+Ease of Development: FastAPI's automatic documentation and validation can significantly speed up development and testing.
+
+# Coding Editor
+- The Monaco Editor offers a state-of-the-art experience with features closest to desktop IDEs, 
+- which can be highly appealing to users familiar with Visual Studio Code. 
+- Its support for IntelliSense and code suggestions might also aid in the hinting process, potentially integrating with your AI hint system.
+
+# Engine
+- Docker containers are a robust choice for safely executing user code. 
+- They provide a good balance between security, resource control, and scalability. 
+- You can implement a microservices architecture where each code execution request spins up a Docker container in a secure, isolated environment. 
+- This setup can be automated and scaled using orchestration tools like Kubernetes.
+
+
+# Logs
+23-Mar-24: 
+Building the code editor from scratch using fastapi

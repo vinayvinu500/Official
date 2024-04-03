@@ -1,0 +1,42 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+.content {
+    flex: 1; /* Takes up the available space */
+    overflow-y: auto; /* Allows scrolling within the content area if needed */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Pushes footer to the bottom */
+}
+.table-container {
+    overflow-y: auto;
+    margin-top: 20px;
+    flex: 1; /* Allows table container to take up available space */
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+th, td {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 1px solid #ddd;
+}
+th {
+    position: sticky;
+    top: 0;
+    background-color: #f9f9f9;
+}
+.footer {
+    text-align: center;
+    padding: 10px;
+    background: #f9f9f9;
+    display: flex;
+    justify-content: center; /* Center pagination horizontally */
+    gap: 10px; /* Space between pagination elements */
+}

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ question.Title }}</title> 
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/questionSolve.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-language_tools.js"></script> <!-- Include Ext-Language Tools for Autocompletion -->
+</head>
+<body>
+    <div class="container">
+        <div class="problem-description" data-database-schema-filename="{{ question.DatabaseSchema }}">
+            <h2>Problem Description</h2>
+            {% autoescape false %}
+            <p>{{ question.Description }}</p>
+            {% endautoescape %}
+            <!-- Loop through each table in the data list and display its records -->
+            {% for table_name, records in data %}
+                <div class="database-table">
+                    <h3>Table: {{ table_name }}</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <!-- Assuming your records are dictionaries with column names as keys -->
+                                {% for column in records[0].keys() %}
+                                    <th>{{ column }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in records %}
+                                <tr>
+                                    {% for value in record.values() %}
+                                        <td>{{ value }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="code-editor">
+            <h2>Code Editor</h2>
+            <!-- <textarea id="code" name="code" rows="20" cols="50"></textarea> -->
+            <!-- Make sure this ID matches the one used in your script.js -->
+            <div id="code-editor" style="height: 500px; width: 100%;" class="user-query"></div>
+            <div id="test-hints-container">
+                <div class="section-headers">
+                    <div class="toggle test" data-target="test-content">Test</div>
+                    <div class="toggle hints" data-target="hints-content">Hints</div>
+                    <span class="container-toggle-indicator">▼</span>
+                </div>
+                
+                <div id="test-content" class="content collapsed">
+                    <div id="test-results">Loading Test...</div>
+                </div>
+                
+                <div id="hints-content" class="content collapsed">
+                    <p id="hints-placeholder">Loading Hints...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        var userQuery = {{ question.UserQuery | tojson | safe }};
+        var embedCode = {{ question.ID | tojson | safe}};
+        // console.log(userQuery, embedCode);
+    </script>
+    <script src="{{ url_for('static', path='/js/questionSolve.js') }}"></script>
+</body>
+</html>

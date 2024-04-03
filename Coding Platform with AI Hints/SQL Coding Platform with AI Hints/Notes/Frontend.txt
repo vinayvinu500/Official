@@ -1,0 +1,15 @@
+Responsive Design: Ensure the layout and elements adapt well to different screen sizes for usability across devices.
+Accessibility: Check that your application is accessible, including proper keyboard navigation and screen reader support.
+User Feedback: Implement clear loading states and error messages to inform users about the system's status and any issues with their code.
+Security: On the frontend, especially consider escaping any user-generated content that gets displayed to prevent XSS attacks.  
+
+# Use-Case
+1. Problem Statement Display
+Using Jinja2 to render the problem statement on the server side is ideal for content that doesn't change dynamically after the page loads. This ensures users see the content immediately upon page load without waiting for JavaScript to fetch and render it. For changing the problem without reloading the page, you could still fetch new problems via JavaScript, but for initial load or direct navigation, Jinja2 is a solid choice.
+
+2. Ace Code Editor Integration
+Ace Editor is perfect for providing a sophisticated code-writing experience right in the browser. It supports syntax highlighting, error lines, and much more, making it a good fit for the interactive part of your application where users write and test their SQL queries.
+
+3. Test and Hint Buttons
+These buttons can trigger JavaScript functions to interact with the backend, send the user-written code for execution, and fetch hints. The responses from these interactions can then dynamically update parts of the page (like displaying errors from test execution or hints to improve the code) without needing to reload the entire page.
+

@@ -1,0 +1,12 @@
+openai
+langchain
+docx2txt
+pypdf
+streamlit
+chromadb
+tiktoken
+langchain-openai
+langchain_experimental
+python-dotenv
+tqdm
+bs4

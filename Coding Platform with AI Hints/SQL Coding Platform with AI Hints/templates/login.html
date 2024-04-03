@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Authentication</title>
+        <link rel="stylesheet" href="static/css/login.css">
+    </head>
+    <body>
+        <div class="form-container">
+            <form id="loginForm" onsubmit="login(); return false;">
+                <h2>Login</h2>
+                <input type="text" id="loginUsername" placeholder="Username" required autocomplete="username" autofocus>
+                <input type="password" id="loginPassword" placeholder="Password" required autocomplete="current-password" autofocus>
+                <input type="submit" value="Login">
+                <p class="toggle-link"><a href="#" onclick="toggleForms()">Don't have an account?</a></p>
+            </form>
+
+            <form id="signupForm" class="hidden" onsubmit="signup(); return false;">
+                <h2>Sign Up</h2>
+                <input type="text" id="signupUsername" placeholder="Username" required autocomplete="email" autofocus>
+                <input type="password" id="signupPassword" placeholder="Password" required autocomplete="new-password" autofocus>
+                <input type="submit" value="Sign Up">
+                <p class="toggle-link"><a href="#" onclick="toggleForms()">Already have an account?</a></p>
+            </form>
+        </div>
+    <script defer src="static/js/login.js"></script>
+    </body>
+</html>

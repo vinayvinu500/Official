@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Creation</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/content.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jodit/3.4.25/jodit.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-language_tools.js"></script>
+</head>
+<body>
+    <div class="container">
+        <form id="content-form" method="post">
+            <section class="title-input">
+                <h2>Title</h2>
+                <input type="text" id="problem-title" name="title" placeholder="Enter title here..." value="{{ request.form.title | default('', true) }}">
+            </section>
+            <section class="title-input">
+                <h2>Problem Description</h2>
+                <div id="editor" name="description">{{ request.form.description | default('', true) }}</div>
+            </section>
+            <section class="title-input">
+                <h2>Difficulty Level</h2>
+                <select id="difficulty-selector" name="difficulty">
+                    <option value="Easy">Easy</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Hard">Hard</option>
+                </select>
+            </section>
+            <section class="database-schema">
+                <h2>Database Schema</h2>
+                <div class="schema-file-selection">
+                    <select id="schema-file-selector" name="schema_file" onchange="handleSelectorChange()">
+                        <option value="">Select an existing schema file...</option>
+                        {% for file in schema_files %}
+                            <option value="{{ file }}" {% if file == selected_file %} selected {% endif %}>{{ file }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="text" id="schema-file-name" name="schema_file_name" placeholder="Or enter new file name" oninput="handleInputEdit()">
+                </div>
+                <div id="db-schema-editor" class="ace-editor"></div>
+            </section>
+            <div class="solutions-container">
+                <section class="user-query">
+                    <h2>User Query</h2>
+                    <div id="user-query" class="ace-editor"></div>
+                </section>
+                <section class="sample-solution">
+                    <h2>Sample Solution</h2>
+                    <div id="sample-solution" class="ace-editor"></div>
+                </section>
+            </div>
+            <div class="actions">
+                <input type="submit" id="submit-btn" class="submit" value="Submit">
+                <button type="button" id="test-btn" class="test">Test</button>
+            </div>
+            <div id="test-results"></div>
+        </form>
+    </div>
+    <script>
+        // Minimal JavaScript for handling the selector and input interaction
+        function handleSelectorChange() {
+            document.getElementById("schema-file-name").disabled = !!document.getElementById("schema-file-selector").value;
+        }
+        function handleInputEdit() {
+            document.getElementById("schema-file-selector").disabled = !!document.getElementById("schema-file-name").value.trim();
+        }
+    </script>
+    <script src="{{ url_for('static', path='/js/content.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jodit/3.4.25/jodit.min.js"></script>
+</body>
+</html>

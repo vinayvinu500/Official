@@ -1,0 +1,228 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    display: flex;
+    height: 100vh;
+}
+
+.problem-description, .code-editor {
+    flex: 1; /* Ensures equal width */
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    overflow: hidden; /* Prevents overflow from disturbing the layout */
+}
+
+.code-editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px; /* Ensure this matches with the calculation in #test-hints-container */
+    overflow: hidden;
+    position: relative; /* Important for absolute positioning of children */
+}
+
+#code-editor {
+    flex-grow: 1;
+    margin-bottom: -3px; /* Adjust the editor height to avoid overlap */
+}
+
+#test-hints-container {
+    position: absolute;
+    bottom: 0;
+    left: 20px; /* Match the padding of .code-editor */
+    right: 20px; /* Match the padding of .code-editor */
+    background-color: #f0f0f0;
+    transition: height 0.5s ease;
+    z-index: 10;
+}
+
+#test-hints-toggle {
+    display: flex;
+    justify-content: space-around; /* Evenly space the toggle buttons */
+    background-color: #eee;
+    cursor: pointer;
+}
+
+.toggle {
+    flex-grow: 1;
+    text-align: center;
+    padding: 10px;
+    border-right: 1px solid #ccc;
+}
+
+.toggle:last-child {
+    border-right: none;
+}
+
+.content {
+    display: none; /* Initially hide the content */
+    padding: 20px;
+    background-color: #f9f9f9;
+}
+
+.content:not(.collapsed) {
+    display: block;
+    height: auto; /* Adjust the height as needed or keep it flexible */
+}
+
+.database-table {
+    margin-bottom: 20px; /* Space between each table section */
+    overflow-x: auto; /* Enable horizontal scrolling for wide tables */
+}
+
+.database-table h3 {
+    margin-bottom: 10px; /* Space above the table */
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%; /* Ensure table stretches to container width */
+    min-width: 600px; /* Minimum width of the table */
+    background-color: #fff; /* Background color */
+}
+
+table, th, td {
+    border: 1px solid #ddd; /* Border color */
+}
+
+th, td {
+    text-align: left;
+    padding: 8px; /* Cell padding */
+}
+
+th {
+    background-color: #f2f2f2; /* Header background color */
+    position: sticky;
+    top: 0; /* Stick to the top of the table */
+    z-index: 2; /* Ensure header is above other content */
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9; /* Zebra striping for rows */
+}
+
+/* Styling for scrollable tables */
+.database-table {
+    overflow-y: hidden; /* Hide vertical overflow */
+    overflow-x: auto; /* Allow horizontal scrolling */
+    margin-bottom: 40px; /* Space between tables */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on touch devices */
+}
+
+@media screen and (max-width: 768px) {
+    th, td {
+        padding: 8px 4px; /* Reduced padding on smaller screens */
+    }
+
+    table {
+        min-width: 0; /* Allow table to adjust to smaller screens */
+    }
+}
+
+
+.user-query{
+    flex-basis: 48%; /* Adjust the flex-basis to control the width, keeping in mind the gap */
+}
+
+
+.test:hover, .hints:hover {
+    background-color: #0056b3;
+    transition: background-color 0.3s ease; /* Smooth transition for background color */
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.results-table, .results-table th, .results-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+
+.results-table th {
+  background-color: #f2f2f2;
+}
+
+.results-table tr:nth-child(even) {background-color: #f9f9f9;}
+
+/* Base class for common styling */
+.message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center; /* Ensures text is centered if flex properties don't apply as expected */
+    padding: 10px;
+    border-radius: 5px;
+    margin: 20px 0;
+    font-size: 16px;
+    position: relative;
+    font-weight: bold;
+    width: 100%; /* Ensures the element takes full width */
+}
+
+
+/* Success message styling */
+.success {
+    background-color: green; /* Success color */
+    color: white; /* Text color for success */
+    border: 1px solid transparent; /* Adjust border color as needed */
+}
+
+.error-message {
+    color: #721c24; /* Darker shade of red for text */
+    background-color: #f8d7da; /* Soft red background */
+    /* Ensure other properties match your design needs */
+    text-align: center; /* Center align text */
+    padding: 10px;
+    border-radius: 5px;
+    margin: 20px 0;
+    font-weight: bold;
+    width: 100%;
+}
+
+
+/* Error message styling */
+.error {
+    background-color: #f8d7da; /* Soft red background for errors */
+    color: #721c24; /* Darker shade of red for text to ensure good contrast */
+    border: 1px solid #f5c6cb; /* Slightly darker border for definition */
+}
+
+/* Additional styling for .results-table and .error for consistency and layout */
+.error, .success, #test-results {
+    width: 100%; /* Ensure full container width is used */
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+.section-headers {
+    display: flex;
+    align-items: center; /* Align items vertically */
+    gap: 10px; /* Spacing between items */
+}
+
+.toggle, .container-toggle-indicator {
+    cursor: pointer;
+}
+
+#test-hints-container .content.collapsed {
+    display: none;
+}
+
+#test-hints-container .content {
+    display: block; /* Adjust as necessary */
+}
+
+.container-toggle-indicator {
+    display: block;
+    cursor: pointer;
+}

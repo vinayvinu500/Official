@@ -1,0 +1,14 @@
+Choosing the LLM Type:
+Agentic Aware: This approach is suitable for educational tools. It guides users to the solution through hints, questions, or suggestions that encourage them to discover the answer on their own. It can help users develop problem-solving skills and a deeper understanding of SQL.
+Chain of Thought: This approach involves the LLM breaking down the problem into smaller, manageable steps and providing a reasoning path that leads to the solution. While it can be more direct than the agentic approach, it still fosters learning by showing the thought process behind solving SQL queries.
+
+Strategy Overview:
+Langchain Integration for Initial Analysis:
+
+Use Langchain to analyze the SQL query and the problem description. Langchain can help identify gaps or misunderstandings in the user's approach by analyzing the structure and logic of their SQL query in the context of the problem description.
+Agentic Awareness for Guided Learning:
+
+Based on Langchain's analysis, generate hints that guide the user towards understanding their mistake or what they might be missing. Instead of giving direct answers, you might ask probing questions or suggest areas for the user to review. For example, "Have you considered the relationships between the tables involved?" or "Think about what conditions might be missing in your WHERE clause."
+Chain of Thought for Deeper Understanding:
+
+If the user continues to struggle, provide a chain of thought that breaks down the problem into smaller, logical steps. Explain the reasoning behind each step without directly solving the problem. For instance, "To find the desired records, we start by identifying the necessary tables. Next, consider what criteria we use to filter these records."
