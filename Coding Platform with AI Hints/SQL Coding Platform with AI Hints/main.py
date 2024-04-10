@@ -9,19 +9,19 @@ from fastapi import FastAPI, Request, Depends, status, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse
-from typing import Optional
+from typing import Optional, List
 from routers import Authentication, Users
 
-from hints import analyze_query_with_langchain, generate_agentic_hints, generate_chain_of_thought
+from hints import analyze_query_with_langchain, generate_agentic_hints, generate_chain_of_thought, analyze_and_improve_questions, llm_generate_questions
 from databases import app_lifespan, get_mysql_db, get_sqlite_db, sqlite_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError, ProgrammingError, OperationalError, IntegrityError
 from sqlalchemy import text, func
-from schemas import QuestionSubmission, HintsDescription
+from schemas import QuestionSubmission, HintsDescription, QuestionGeneration
 from models import Base, CodingQuestions
-from sanitize import sanitize_html
+from sanitize import sanitize_html, sanitize_input
 from tokens import get_current_user
 import cssutils
 import logging
@@ -44,6 +44,16 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"],  # Specify only the methods your API uses
     allow_headers=["Authorization", "Content-Type"],  # Ensure 'Authorization' is allowed for JWT tokens
 )
+"""
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins, but you should limit this in production
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+"""
 
 # Set up basic configuration for logging
 logging.basicConfig(level=logging.INFO)
@@ -420,4 +430,20 @@ async def get_hints(hints_description: HintsDescription, db_sqlite: Session = De
     if not analysis['feedback']:
         raise HTTPException(status_code=404, detail="No hints could be generated.")
 
-    return {"hints": analysis['feedback']}  
+    return {"hints": analysis['feedback']} 
+
+@app.get('/generate')
+async def generate(request: Request):
+    return templates.TemplateResponse("questionGenerate.html", {"request": request})
+
+
+@app.post("/generate-questions")
+async def generate_questions_list(request: QuestionGeneration, current_user = Depends(get_current_user)):
+    # Generate questions using the LLM
+    generated_questions = await llm_generate_questions(request)  # Adjust this call based on your LLM wrapper's interface
+    print(generated_questions)
+    
+    # Analyze and improve the generated questions
+    improved_questions = await analyze_and_improve_questions(generated_questions)
+
+    return {"data": improved_questions}  # Adjust this response as needed for your front-end

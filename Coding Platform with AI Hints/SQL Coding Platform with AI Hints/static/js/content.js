@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
   //     const response = await fetch("/api/token/validate", {
   //       method: "GET", // or GET, depending on how you set it up
   //       headers: {
-  //         Authorization: `Bearer ${token}`,
+  //         "Authorization": `Bearer ${token}`,
   //       },
   //     });
   //     if (response.ok) {
@@ -199,7 +199,7 @@ async function testQuery() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        "Authorization": `Bearer ${token}`,
       },
       body: JSON.stringify(requestBody),
     });
@@ -346,7 +346,7 @@ async function submitQuestion() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        "Authorization": `Bearer ${token}`,
       },
       body: JSON.stringify(requestBody),
     });

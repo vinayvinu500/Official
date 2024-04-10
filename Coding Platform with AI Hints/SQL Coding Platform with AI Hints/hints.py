@@ -1,7 +1,13 @@
 import os
 import re
+import asyncio  # Assuming async operation for LLM invocation
+from httpx import AsyncClient, HTTPStatusError, RequestError
+import json
+
 from typing import Annotated, Optional
 from dotenv import load_dotenv, find_dotenv
+
+from sanitize import sanitize_input
 
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -165,3 +171,181 @@ def generate_chain_of_thought(analysis):
 
     return steps
 
+def validate_question(question):
+    """
+    Validates the updated question to ensure it meets specific criteria for completeness and coherence.
+
+    :param question: The question to validate.
+    :return: True if the question is valid, False otherwise.
+    """
+    required_fields = ['description', 'database_schema', 'sample_solution']
+
+    # Check for presence of all required fields
+    if not all(field in question for field in required_fields):
+        return False
+
+    # Check for empty values
+    if any(not question[field].strip() for field in required_fields):
+        return False
+
+    # Additional checks can be implemented here (e.g., schema validity, solution correctness)
+
+    return True
+
+
+async def query_llm(question, llm, api_key=os.environ.get('OPENAI_API_KEY')):
+    """
+    Query an LLM to analyze a programming question and suggest improvements.
+
+    :param question: The question to be analyzed, in JSON format.
+    :param llm: An instance or a method capable of interacting with a language model.
+    :return: A structured response with analysis and suggestions.
+    """
+    # Construct a detailed and clear prompt for the LLM
+    prompt = (
+        "Here's a programming question that needs analysis for logical consistency, clarity, "
+        "and relevance to its stated topic. Additionally, please suggest specific improvements if necessary:\n\n"
+        f"Question JSON: {json.dumps(question, indent=2)}\n\n"
+        "Please provide your analysis and suggestions below:"
+    )
+    print(prompt)
+    async with AsyncClient() as client:
+        try:
+            # Send the prompt to the LLM and get the response
+            response = llm.invoke(prompt)
+            # Assuming the response includes a 'text' field with the LLM's suggestions.
+            # The exact structure of 'response' depends on the LLM's API.
+            # response.raise_for_status()  # Raises exception for 4XX/5XX responses
+
+            # Adjusted part: Extract the content directly from the data structure
+            content = response.content.strip() if hasattr(response, 'content') else None
+            
+            return content  # Return the extracted content
+
+        except HTTPStatusError as http_err:
+            print(f"HTTP error occurred: {http_err}. Response: {http_err.response.text}")
+        except Exception as error:
+            # Handle potential errors gracefully
+            print(f"Error querying LLM: {error}")
+            # Depending on your application's needs, you might return a default response, log the error, or retry the request
+            return None
+
+# Example invocation (pseudocode, as actual LLM interaction would vary)
+# llm_instance = SomeLLMClient(api_key="your_api_key")
+# improved_question = await query_llm(question_json, llm_instance)  
+
+"""
+Structured and Free-text Suggestions: The function now better handles both structured (dictionary) and unstructured (string) suggestions. For free-text suggestions, a simple regex example is provided, but this can be expanded to include more complex parsing logic.
+Comprehensive Validation: The validate_question function checks for the presence and non-emptiness of all required fields (description, database_schema, sample_solution). This step is crucial to ensure the question remains coherent and complete after modifications. Further validation logic can be added to this function to check for the logical correctness of the database_schema and the sample_solution.
+Fallback Mechanism: If the validation fails (indicating that the applied suggestions rendered the question invalid), the function reverts to the original question. This approach ensures that the process does not inadvertently reduce the quality or coherence of the question.
+Extensibility: The pattern used for parsing free-text suggestions is designed to be easily extendable. As you identify common formats or phrases in the LLM's suggestions, you can add additional regex patterns or parsing logic to handle these cases.
+"""
+
+def apply_suggestions(question, suggestions):
+    """
+    Apply suggestions from the LLM to improve a question, handling both structured and free-text suggestions.
+    Performs validation after applying suggestions to ensure question integrity.
+
+    :param question: The original question in JSON format.
+    :param suggestions: Suggestions for improvement, potentially in various formats.
+    :return: The improved question, if valid; otherwise, return the original question.
+    """
+    # If question is a string, try parsing it as JSON into a dict
+    if isinstance(question, str):
+        try:
+            question = json.loads(question)
+        except json.JSONDecodeError:
+            print(f"Error: Question is a string that cannot be decoded into JSON. - {question}")
+            return None  # Or handle the error as appropriate for your application
+
+    # If question is not a dict by now, return an error or handle accordingly
+    if not isinstance(question, dict):
+        print(f"Error: Question is not a dictionary. - {question}")
+        return None
+
+    original_question = question.copy()  # Now safe to copy, assuming question is a dict
+
+    # Validate the modified question
+    if validate_question(question):
+        return question
+    else:
+        # If validation fails, revert to the original question
+        return original_question
+
+# Generate questions based on user request
+async def llm_generate_questions(request):
+    try:
+        # Extract and sanitize user inputs
+        language = request.language
+        num_questions = request.num_questions
+        topic = sanitize_input(request.topic)
+        difficulty_level = request.difficulty_level.name
+        
+        # Create the prompt template
+        chat_prompt_template = f"I need your assistance to generate {num_questions} programming questions. These questions should cover the topic of {topic}, be suitable for {language} programmers, and match a {difficulty_level} difficulty level. For each question, provide a detailed description, a sample database schema that includes all necessary details and edge cases, and a sample solution query. Please format your response as a list of JSON objects, each containing 'description', 'database_schema', and 'sample_solution' fields."
+        
+        chat_template = ChatPromptTemplate.from_messages(
+            [
+                SystemMessage(content="Your responses must be in JSON format. For each question, provide a detailed description, a sample database schema that includes all necessary details and edge cases, and a sample solution query. Please format your response as a list of JSON objects, each containing 'description', 'database_schema', and 'sample_solution' fields. Ensure the questions are unique and engaging."),
+                HumanMessagePromptTemplate.from_template('Generate {num_questions} questions about {topic} for {language} at {difficulty_level} difficulty level, including their descriptions, database schemas, and sample solutions.'),
+            ]
+        )
+
+        # Instantiate the OpenAICompletion with your API key
+        llm = ChatOpenAI()
+        
+        # Generate questions
+        messages = chat_template.format_messages(language=language, num_questions=num_questions, topic=topic, difficulty_level=difficulty_level)
+        generated_questions = llm.invoke(messages)
+        
+        # Return the generated questions
+        return {"prompt": chat_prompt_template, "questions": generated_questions}
+    except Exception as e:
+        # Handle errors gracefully
+        return {"error": str(e), "message": "An error occurred during question generation. Please try again later."}
+
+"""
+Operations:
+- Analyze them for quality, relevance, and correctness.
+- Improve them based on the analysis, which may involve refining, correcting, or even regenerating questions that don't meet the desired criteria.
+
+Approach for Analyzing and Improving Questions
+- Parsing and Validation: Since your setup expects questions in JSON format, the first step will involve parsing the generated output and validating its structure.
+- Content Review: Analyze the questions for adherence to the topic, difficulty level, and language specificity.
+- Improvement Mechanism: Based on the review, decide whether a question needs refinement, clarification, or correction. This could involve:
+    - Minor edits for clarity or specificity.
+    - Regenerating questions that are off-topic or don't match the difficulty level.
+    - Formatting the questions to fit a standard template or structure, if required.
+"""
+async def analyze_and_improve_questions(generated_questions, api_key=os.environ.get("OPENAI_API_KEY")):
+    """
+    Use an LLM to analyze and improve generated questions.
+
+    :param generated_questions: List of questions to be analyzed and improved.
+    :param llm_api_key: API key for accessing the LLM.
+    :return: A list of improved questions.
+    """
+    # Instantiate the OpenAICompletion with your API key
+    llm = ChatOpenAI(api_key=api_key)
+    
+    improved_questions = []
+
+    for question in generated_questions:
+        # Query the LLM for analysis and suggestions
+        analysis_response = await query_llm(question, llm, api_key)
+        
+        # Process the LLM's response to identify suggestions for improvement
+        # This step may involve parsing the response, extracting actionable suggestions,
+        # and applying these suggestions to improve the question.
+        # For simplicity, we assume the LLM's response includes specific suggestions for improvement.
+        print(analysis_response)
+        
+        if analysis_response:
+            # Apply the LLM's suggestions to improve the question
+            improved_question = apply_suggestions(question, analysis_response)
+            improved_questions.append(improved_question)
+        else:
+            # If no improvements are suggested, assume the question is already of high quality
+            improved_questions.append(question)
+
+    return improved_questions

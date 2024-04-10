@@ -1,0 +1,33 @@
+services:
+  server:
+    build: ./server/
+    command: ["./wait-for-it.sh", "database:3306", "--timeout=30", "--", "sh", "-c", "gunicorn --bind 0.0.0.0:8000 -w 5 main:app"]
+    depends_on:
+      - database
+    env_file:
+      - .env
+    # environment:
+    #   MYSQL_ROOT_USER: ${MYSQL_ROOT_USER}
+    #   MYSQL_DATABASE: ${MYSQL_DATABASE}
+    #   MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "8000:8000"
+    
+  database:
+    build: ./database/
+    restart: always
+    env_file:
+      - .env
+    # environment:
+    #   MYSQL_DATABASE: ${MYSQL_DATABASE}
+    #   MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "3307:3306"  # This maps port 3306 inside the container to port 3307 on your host
+
+# docker-compose up --build
+# docker-compose logs <service_name>
+# docker ps -a
+# docker images
+# docker stop <container_id>
+# docker rm <container_id>
+# docker rmi <image_id>

@@ -1,0 +1,38 @@
+docker run -it --rm ubuntu /bin/bash
+whereas,
+    - docker : cli
+    - run : command
+    - -it --rm: options
+    - ubuntu /bin/bash : arguments
+
+# Containers: CRUD operations
+docker ps : will show only the running containers
+docker ps -a : will show all the containers
+docker start <container_id / name>: will start/restart the container | Ex: docker start 45 {starting first two characters of the container_id}
+docker stop <container_id / name> : will stop the container | Ex: docker stop 45
+docker rm <container_id / name> : will delete the container
+
+# Prototyping
+docker run -it -d --rm --name ubuntu1 ubuntu /bin/bash
+docker run -it -d --rm --name ubuntu2 ubuntu /bin/bash
+docker run -it -d --rm --name ubuntu3 ubuntu /bin/bash
+
+whereas,
+    - -it : flag which describes as interactive terminal
+    - -d : flag which detach the terminal rather than stays on the same terminal which was ranned
+    - --name ubuntu1: which describes hardcodes the unique name of the container
+    - --rm : flag which will remove when we stop the container after the use : just like use & throw 
+
+# make use of the running containers in the current terminal
+docker attach ubuntu1
+docker stop ubuntu2
+
+# non-isolation - volumes : one and another container are in sync 
+volumes: the host where the mount point which the container has been run from and the container itself
+
+# example: unmounting the rar file 
+docker run --rm -v "%CD%:/files" maxcnunes/unrar unrar x -r /c/Users/Vinay\/Kumar\/G/Downloads/demo/my_appraisal_contents.rar
+docker run --rm -v "%CD%:/files" ubuntu bash -c "apt-get update && apt-get install -y unrar && unrar x -r /files/my_appraisal_contents.rar"
+
+# node repl
+docker run -it --rm --name node node:7.7.4-alpine

@@ -1,0 +1,33 @@
+# Sahil ideas
+
+we will be asking the prompt from the user saying about the list of topic / i.e, any topic 
+and then by default there should be automatically create the questions and we will be 
+
+there would be subscription fee of one day / single day practice and would charge around 10 rupees
+user can click on any language 
+
+# Prompting 
+Which language: sql
+no of questions: 10
+topic: subquery
+difficulty-level: easy/medium/hard
+
+problem-statement
+Objective 
+sample dataset
+
+# Validation
+no of questions: correct | wrong | error 
+end of the result : save or reset
+
+
+# LLM Based Application online Practice IDE for coding in python/ sql/ javascript/ java (Labs)
+
+# User Billing
+- Advertisement
+- Subscription
+
+# Billing Cost
+- OPENAI API Cost -> Input / Output (Major) 
+- SERVER Cost -> Backend 
+- FINE-Tuning -> 

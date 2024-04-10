@@ -1,5 +1,6 @@
 from typing import Annotated, Optional
-from pydantic import BaseModel, ConfigDict, ValidationError, EmailStr
+from pydantic import BaseModel, ConfigDict, ValidationError, EmailStr, Field
+from enum import Enum
 
 class QuestionSubmission(BaseModel):
     title: str
@@ -50,3 +51,14 @@ class Message(BaseModel):
 
 # class UserInDB(Users):
 #     hashed_password: str
+
+class DifficultyLevel(str, Enum):
+    Easy = "Easy"
+    Medium = "Medium"
+    Hard = "Hard"
+
+class QuestionGeneration(BaseModel):
+    language: str
+    num_questions: int
+    topic: str = Field('basic topic', min_length=2, max_length=255, strip_whitespace=True)
+    difficulty_level: DifficultyLevel
