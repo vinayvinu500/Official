@@ -1,0 +1,766 @@
+create or replace PACKAGE us_vmi_stackability AS
+    -- GRANT ALL ON SCPOMGR.temp_visualization_results TO BATCHMGR;
+    
+    ----- Script 1 -----
+    TYPE source_table IS
+        TABLE OF VARCHAR2(100);
+    TYPE u_stackabilitytype_table IS
+        TABLE OF VARCHAR2(100);
+    TYPE transmode_table IS
+        TABLE OF VARCHAR2(100);
+    
+    ----- Script 2 -----
+    -- Type Definitions
+    TYPE stackability_table IS
+        TABLE OF VARCHAR2(4000) INDEX BY VARCHAR2(100);
+    stackability_map stackability_table;
+    TYPE demand_rec IS RECORD (
+        source                  VARCHAR2(4000),
+        dest                    VARCHAR2(4000),
+        transmode               VARCHAR2(4000),
+        u_variant_type_desc     VARCHAR2(4000),
+        color                   VARCHAR2(4000),
+        item                    VARCHAR2(4000),
+        quantity                FLOAT,  -- Allow fractional pallets
+        sourcingid_seq          NUMBER,
+        schedshipdate           DATE,
+        schedarrivdate          DATE,
+        sid                     NUMBER,
+        seqnum                  NUMBER,
+        u_priority              NUMBER,
+        ratio                   FLOAT, -- Store ratio so we don't re-query each time
+        wgt                     FLOAT, -- Store wgt so we don't re-query each time
+        actual_weight_per_pallet FLOAT,  -- This will hold the calculated weight for a full/partial pallet
+        u_sourcingmin           NUMBER,
+        pallet_type             VARCHAR2(50),    -- 'FULL', 'MERGED', or 'STANDALONE'
+        merged_pallet_id        NUMBER,          -- For MERGED or STANDALONE, reference to merged_pallet_templates
+        is_merged               VARCHAR2(1),     -- 'Y' or 'N'
+        actual_quantity         FLOAT,           -- For STANDALONE, the actual partial quantity
+        --merged_weight           FLOAT,            -- For MERGED, the calculated weight
+        position_id             NUMBER,
+        original_merged_id      NUMBER,
+        is_standalone           VARCHAR2(2),
+        u_dispatchdate            DATE,
+        sales_units_qty NUMBER,
+        majorshipqty NUMBER,        
+        minorshipqty NUMBER,
+        transleadtime NUMBER,
+        arrivcal VARCHAR2(1000),
+        shipcal VARCHAR2(1000),
+        u_adjustedmaxcap NUMBER,
+        constrrecshipsw NUMBER,
+        availtoshipdate DATE,
+        needshipdate DATE,
+        needarrivdate DATE,
+        updated_mincap_su_pallets NUMBER,
+        updated_maxcap_su_pallets NUMBER,
+        updated_mincap_su_pounds FLOAT,
+        updated_maxcap_su_pounds FLOAT,
+        u_item_mintruckstackcap NUMBER,
+        u_item_maxtruckstackcap NUMBER
+    );
+    
+    TYPE demand_list IS TABLE OF demand_rec INDEX BY BINARY_INTEGER;
+    demands demand_list;
+    TYPE weight_table IS
+        TABLE OF NUMBER INDEX BY VARCHAR2(100);
+    weights weight_table; 
+    
+    -- New type for storing detailed pallet information
+    TYPE pallet_info IS RECORD (
+        source              VARCHAR2(4000),
+        dest                VARCHAR2(4000),
+        transmode           VARCHAR2(4000),
+        u_variant_type_desc VARCHAR2(4000),
+        u_stackabilitytype VARCHAR2(4000),
+        item               VARCHAR2(4000),
+        schedshipdate      DATE,
+        schedarrivdate     DATE,
+        condition          VARCHAR2(4000),
+        sourcingid         NUMBER,
+        sourcingid_seq     NUMBER,
+        u_priority         NUMBER,
+        sid                NUMBER,
+        seqnum             NUMBER,
+        pallets_qty        FLOAT,
+        actual_loaded_weight FLOAT,  -- for the exact weight of this pallet
+        u_sourcingmin       NUMBER,
+        pallet_type  VARCHAR2(50),    -- 'FULL', 'MERGED', or 'STANDALONE'
+        is_merged VARCHAR2(1),       -- 'P' for parent (merged), 'C' for component, 'N' for standalone
+        merged_pallet_id NUMBER,       -- Unique ID for the merged pallet
+        component_id NUMBER,           -- ID within the merged pallet (for components)
+        original_id NUMBER,            -- Original ID for split pallets
+        actual_quantity FLOAT,            -- Original quantity for split pallets
+        is_split VARCHAR2(1),           -- 'Y' if split, 'N' otherwise
+        is_component        VARCHAR2(1),
+        parent_pallet_id    NUMBER,
+        position_id         NUMBER,
+        original_merged_id  NUMBER,
+        is_standalone       VARCHAR2(2)
+        --merged_weight FLOAT
+    );
+    
+    TYPE pallet_info_list IS TABLE OF pallet_info INDEX BY BINARY_INTEGER;
+
+    
+    -- New type for storing item capacity constraints
+    TYPE item_capacity_constraint IS RECORD (
+        u_stackabilitytype VARCHAR2(100),
+        min_capacity       NUMBER,
+        max_capacity       NUMBER
+    );
+    TYPE item_capacity_constraint_list IS
+        TABLE OF item_capacity_constraint INDEX BY BINARY_INTEGER;
+
+    -- New type for storing current item capacities for a truck
+    TYPE current_item_capacity IS RECORD (
+        u_stackabilitytype VARCHAR2(100),
+        current_count      NUMBER
+    );
+    TYPE current_item_capacity_list IS
+        TABLE OF current_item_capacity INDEX BY BINARY_INTEGER;
+    item_constraints item_capacity_constraint_list;
+    truck_item_capacities current_item_capacity_list;
+    TYPE weight_calc_record IS RECORD (
+        sourcingid NUMBER,
+        item VARCHAR2(100),
+        u_stackabilitytype VARCHAR2(100),
+        total_weight NUMBER,
+        total_pallets NUMBER,
+        weight_per_pallet NUMBER
+    );
+    TYPE weight_calc_table IS
+        TABLE OF weight_calc_record INDEX BY VARCHAR2(200); -- Composite key
+    weight_calculations weight_calc_table;
+    TYPE truck_info IS RECORD (
+        bottom_row  sys.odcivarchar2list,
+        top_row     sys.odcivarchar2list,
+        bottom_info pallet_info_list,
+        top_info    pallet_info_list,
+        utilization NUMBER
+    );
+    TYPE truck_info_list IS
+        TABLE OF truck_info INDEX BY BINARY_INTEGER;
+    all_trucks truck_info_list;
+    TYPE each_pallet_info IS RECORD (
+        source                    VARCHAR2(100),
+        dest                      VARCHAR2(100),
+        transmode                 VARCHAR2(100),
+        u_variant_type_desc       VARCHAR2(100),
+        u_stackabilitytype        VARCHAR2(100),
+        item                      VARCHAR2(100),
+        pallets_qty               FLOAT,
+        weight                    FLOAT,
+        schedshipdate             DATE,
+        schedarrivdate            DATE,
+        sourcingid                NUMBER,
+        sourcingid_seq            NUMBER,
+        u_priority                NUMBER,
+        sid                       NUMBER,
+        seqnum                    NUMBER,
+        u_dispatchdate            DATE,
+        ratio                     FLOAT,
+        sales_units_qty           FLOAT,
+        recqty                    NUMBER,
+        majorshipqty              NUMBER,
+        minorshipqty              NUMBER,
+        updated_mincap_su_pallets NUMBER,
+        updated_maxcap_su_pallets NUMBER,
+        updated_mincap_su_pounds  FLOAT,
+        updated_maxcap_su_pounds  FLOAT,
+        u_item_mintruckstackcap   NUMBER,
+        u_item_maxtruckstackcap   NUMBER,
+        transleadtime             FLOAT,
+        arrivcal                  VARCHAR2(100),
+        shipcal                  VARCHAR2(100),
+        u_adjustedmaxcap         NUMBER,
+        wgt                       FLOAT,
+        u_sourcingmin             NUMBER,
+        constrrecshipsw           NUMBER,
+        availtoshipdate           DATE,
+        needshipdate              DATE,
+        needarrivdate             DATE,
+        pallet_type  VARCHAR2(50),    -- 'FULL', 'MERGED', or 'STANDALONE'
+        is_merged VARCHAR2(1),       -- 'P' for parent (merged), 'C' for component, 'N' for standalone
+        merged_pallet_id NUMBER,       -- Unique ID for the merged pallet
+        component_id NUMBER,           -- ID within the merged pallet (for components)
+        original_id NUMBER,            -- Original ID for split pallets
+        actual_quantity FLOAT,            -- Original quantity for split pallets
+        is_split VARCHAR2(1),           -- 'Y' if split, 'N' otherwise
+        is_component        VARCHAR2(1),
+        parent_pallet_id    NUMBER,
+        position_id         NUMBER,
+        original_merged_id  NUMBER,
+        actual_loaded_weight FLOAT,
+        is_standalone        VARCHAR2(2)
+    );
+    TYPE pallet_list_info IS
+        TABLE OF each_pallet_info;
+    v_bottom_info pallet_list_info;
+    v_top_info pallet_list_info;
+    TYPE truck_info_hub IS RECORD (
+        bottom_row  sys.odcivarchar2list,
+        top_row     sys.odcivarchar2list,
+        bottom_info pallet_list_info,
+        top_info    pallet_list_info,
+        utilization NUMBER
+    );
+    TYPE truck_info_list_hub IS
+        TABLE OF truck_info_hub INDEX BY PLS_INTEGER;
+    all_trucks_hub truck_info_list_hub;
+    
+    TYPE t_sched_dates_rec IS RECORD (
+        schedshipdate  DATE,
+        schedarrivdate DATE
+    );
+    
+    -- Local types matching those in p_vmi_elligible_loads
+    TYPE load_id_rec IS RECORD (
+      sourcingid            NUMBER,
+      loadid                NUMBER,
+      source                VARCHAR2(100),
+      dest                  VARCHAR2(100),
+      transmode             VARCHAR2(100),
+      u_variant_type_desc   VARCHAR2(100),
+      u_priority            NUMBER
+    );
+    TYPE load_id_list IS TABLE OF load_id_rec INDEX BY PLS_INTEGER;
+    p_eligible_loads       load_id_list;
+    
+    TYPE exploded_line_rec IS RECORD (
+        pallet_qty    FLOAT,  -- e.g. 1.0 for full or leftover fraction
+        pallet_weight FLOAT   -- computed weight for that pallet
+    );
+    
+    TYPE exploded_line_tab IS TABLE OF exploded_line_rec;
+    
+    -- Data structures for pallet merging
+    TYPE partial_pallet_rec IS RECORD (
+        id NUMBER,
+        item VARCHAR2(50),
+        quantity FLOAT,
+        color VARCHAR2(20),
+        weight FLOAT,
+        is_split BOOLEAN DEFAULT FALSE,
+        original_id NUMBER,
+        original_qty FLOAT,
+        source VARCHAR2(4000),
+        dest VARCHAR2(4000),
+        transmode VARCHAR2(4000),
+        u_variant_type_desc VARCHAR2(4000),
+        sourcingid_seq NUMBER,
+        sid NUMBER,
+        seqnum NUMBER,
+        u_priority NUMBER,
+        recqty NUMBER,
+        ratio FLOAT,
+        wgt FLOAT,
+        u_sourcingmin NUMBER,
+        schedshipdate DATE,
+        schedarrivdate DATE,
+        color_seqn NUMBER,
+        is_standalone VARCHAR2(2),
+        u_dispatchdate DATE,
+        sales_units_qty NUMBER,
+        majorshipqty NUMBER,        
+        minorshipqty NUMBER,
+        transleadtime NUMBER,
+        arrivcal VARCHAR2(1000),
+        shipcal VARCHAR2(1000),
+        u_adjustedmaxcap NUMBER,
+        constrrecshipsw NUMBER,
+        availtoshipdate DATE,
+        needshipdate DATE,
+        needarrivdate DATE,
+        updated_mincap_su_pallets NUMBER,
+        updated_maxcap_su_pallets NUMBER,
+        updated_mincap_su_pounds FLOAT,
+        updated_maxcap_su_pounds FLOAT,
+        u_item_mintruckstackcap NUMBER,
+        u_item_maxtruckstackcap NUMBER
+    );
+    
+    TYPE partial_pallet_array IS TABLE OF partial_pallet_rec INDEX BY BINARY_INTEGER;
+    
+    TYPE merged_bin_rec IS RECORD (
+        id NUMBER,
+        total_quantity FLOAT,
+        total_weight FLOAT,
+        color VARCHAR2(20),
+        items partial_pallet_array,
+        item_count NUMBER,
+        efficiency FLOAT,  -- How well utilized (1.0 = perfect)
+        is_standalone VARCHAR2(2)
+    );
+    
+    TYPE merged_bin_array IS TABLE OF merged_bin_rec INDEX BY BINARY_INTEGER;
+    
+    -- Helper types for merging algorithm
+    TYPE qty_idx_pair IS RECORD (
+        qty FLOAT,
+        idx NUMBER
+    );
+    
+    TYPE qty_idx_array IS TABLE OF qty_idx_pair INDEX BY BINARY_INTEGER;
+    
+    TYPE number_set IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
+    
+    -- Caching structures for performance
+    TYPE efficiency_cache_rec IS TABLE OF FLOAT INDEX BY VARCHAR2(100);
+    efficiency_cache efficiency_cache_rec;
+    cache_size NUMBER := 0;
+    
+    TYPE split_cache_rec IS TABLE OF partial_pallet_array INDEX BY VARCHAR2(100);
+    split_cache split_cache_rec;
+    
+    -- Define color priority map
+    TYPE color_priority_map IS TABLE OF NUMBER INDEX BY VARCHAR2(10);
+    v_color_priority color_priority_map;
+    v_temp demand_rec;
+    
+    -- Temp table to hold all pallets (regular and merged) for processing
+    TYPE pallet_data_rec IS RECORD (
+        source VARCHAR2(4000),
+        dest VARCHAR2(4000),
+        transmode VARCHAR2(4000),
+        u_variant_type_desc VARCHAR2(4000),
+        u_stackabilitytype VARCHAR2(4000),
+        item VARCHAR2(4000),
+        pallets_qty FLOAT,
+        weight FLOAT,
+        schedshipdate DATE,
+        schedarrivdate DATE,
+        sourcingid NUMBER,
+        sourcingid_seq NUMBER,
+        u_priority NUMBER,
+        sid NUMBER,
+        seqnum NUMBER,
+        u_dispatchdate DATE,
+        ratio FLOAT,
+        sales_units_qty FLOAT,
+        recqty NUMBER,
+        majorshipqty NUMBER,
+        minorshipqty NUMBER,
+        transleadtime FLOAT,
+        arrivcal VARCHAR2(100),
+        shipcal VARCHAR2(100),
+        u_adjustedmaxcap NUMBER,
+        wgt FLOAT,
+        u_sourcingmin NUMBER,
+        constrrecshipsw NUMBER,
+        availtoshipdate DATE,
+        needshipdate DATE,
+        needarrivdate DATE,
+        updated_mincap_su_pallets NUMBER,
+        updated_maxcap_su_pallets NUMBER,
+        updated_mincap_su_pounds FLOAT,
+        updated_maxcap_su_pounds FLOAT,
+        u_item_mintruckstackcap NUMBER,
+        u_item_maxtruckstackcap NUMBER,
+        -- Merged pallet specific fields
+        merged_pallet_id NUMBER,
+        pallet_type VARCHAR2(20),
+        is_merged VARCHAR2(1),
+        is_standalone VARCHAR2(1),
+        position_id NUMBER,
+        original_merged_id NUMBER,
+        component_id NUMBER,
+        original_id NUMBER,
+        actual_quantity FLOAT,
+        is_split VARCHAR2(1),
+        is_component VARCHAR2(1),
+        parent_pallet_id NUMBER,
+        color_priority_sourcingid_seq NUMBER
+    );
+    
+    --TYPE pallet_data_tab IS TABLE OF pallet_data_rec;
+    --v_all_pallets pallet_data_tab := pallet_data_tab();
+    
+    TYPE t_number_table IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
+    
+    -- Variables to store the truck's state after loading first condition pallets
+    truck_load_bottom_info       pallet_info_list;
+    truck_load_top_info          pallet_info_list;
+    v_pallet_info                pallet_info;
+    truck_load_bottom_first      sys.odcivarchar2list;
+    truck_load_top_first         sys.odcivarchar2list;
+    truck_load_bottom_info_first pallet_info_list;
+    truck_load_top_info_first    pallet_info_list;
+    
+    truck_load_bottom            sys.odcivarchar2list;
+    truck_load_top               sys.odcivarchar2list;
+    
+    -- Procedure declarations
+    PROCEDURE p_vmi_create_udc;
+    PROCEDURE p_vmi_create_uom_ratios;
+    PROCEDURE p_vmi_create_priority_list;
+    PROCEDURE p_vmi_backuptables;
+    PROCEDURE p_vmi_intializingthevalues;
+    --PROCEDURE p_vmi_create_udc_recship;
+    PROCEDURE p_vmi_insert_into_udcrecship;
+    --PROCEDURE p_vmi_create_priorityshift;
+    PROCEDURE p_vmi_insert_into_priorityshift;
+--    PROCEDURE p_vmi_create_dynamic_columns_udcreship;
+    PROCEDURE p_vmi_update_udc_recship;
+
+    --PROCEDURE p_vmi_create_u_recship;
+
+   -- PROCEDURE p_vmi_create_temp_visulaization_results;
+
+    -- Merging process procedures and functions
+    PROCEDURE p_vmi_reset_caches;
+    /** Fails if p_expr is FALSE */
+    PROCEDURE assert_true(
+        p_expr IN BOOLEAN,
+        p_msg  IN VARCHAR2
+    );
+    
+    /** Fails if |p_a - p_b| > p_tol */
+    PROCEDURE assert_equals(
+        p_a   IN FLOAT,
+        p_b   IN FLOAT,
+        p_tol IN FLOAT,
+        p_msg IN VARCHAR2
+    );
+    
+    -- Legacy split-validation entry point.
+    FUNCTION f_vmi_is_valid_split(
+        p_item         IN partial_pallet_rec,
+        p_split_qty    IN FLOAT,
+        p_target_bins  IN number_set,
+        p_bin_contents IN merged_bin_array,
+        p_tolerance    IN FLOAT := 0.0001
+    ) RETURN BOOLEAN;
+
+    PROCEDURE p_vmi_merge_partial_pallets(
+        p_sourcingid IN NUMBER,
+        p_color IN VARCHAR2,
+        p_condition IN VARCHAR2,
+        p_u_priority IN NUMBER,
+        p_tolerance IN FLOAT DEFAULT 0.0001
+    );
+    FUNCTION f_vmi_merge_partials(
+        p_partials IN partial_pallet_array,
+        p_color IN VARCHAR2,
+        p_tolerance IN FLOAT DEFAULT 0.0001,
+        p_edge_tolerance_factor IN FLOAT DEFAULT 100.0
+    ) RETURN merged_bin_array;
+    FUNCTION f_vmi_find_perfect_combinations(
+        p_partials IN partial_pallet_array,
+        p_color IN VARCHAR2,
+        p_tolerance IN FLOAT
+    ) RETURN merged_bin_array;
+    FUNCTION f_vmi_check_tolerance_edge_case(
+        p_partials IN partial_pallet_array,
+        p_color IN VARCHAR2, 
+        p_tolerance IN FLOAT
+    ) RETURN merged_bin_array;
+    FUNCTION f_vmi_bin_pack_remaining(
+        p_partials IN partial_pallet_array,
+        p_color IN VARCHAR2,
+        p_tolerance IN FLOAT
+    ) RETURN merged_bin_array;
+    FUNCTION f_vmi_split_partial(
+        p_partial IN partial_pallet_rec,
+        p_split_qty IN FLOAT
+    ) RETURN partial_pallet_array;
+    FUNCTION f_vmi_calc_bin_efficiency(
+        p_bin IN merged_bin_rec,
+        p_tolerance IN FLOAT
+    ) RETURN FLOAT;
+    PROCEDURE p_vmi_quicksort(
+        p_items IN OUT qty_idx_array,
+        p_low IN PLS_INTEGER,
+        p_high IN PLS_INTEGER,
+        p_ascending IN BOOLEAN DEFAULT FALSE
+    );
+    FUNCTION f_vmi_new_merged_bin(
+        p_color IN VARCHAR2
+    ) RETURN merged_bin_rec;
+    FUNCTION f_vmi_cleanup_bins(
+        p_bins IN merged_bin_array
+    ) RETURN merged_bin_array;
+    PROCEDURE p_vmi_store_merged_pallets(
+        p_sourcingid IN NUMBER,
+        p_condition IN VARCHAR2,
+        p_color IN VARCHAR2,
+        p_bins IN merged_bin_array,
+        p_tolerance IN FLOAT DEFAULT 0.0001
+    );
+    PROCEDURE p_vmi_load_merged_pallets(
+        p_sourcingid IN NUMBER,
+        p_condition IN VARCHAR2,
+        p_color IN VARCHAR2
+    );
+    PROCEDURE p_vmi_create_positioned_pallet(
+        p_sourcingid IN NUMBER,
+        p_condition IN VARCHAR2,
+        p_color IN VARCHAR2,
+        p_merged_pallet_id IN NUMBER,
+        p_loadid IN NUMBER,
+        p_load_sequence IN NUMBER,
+        p_stack_position IN VARCHAR2,
+        p_position_id OUT NUMBER,
+        p_is_standalone IN VARCHAR2 DEFAULT NULL
+    );
+    PROCEDURE p_vmi_insert_visualization_results (
+        p_sourcingid   NUMBER,
+        p_truck_number NUMBER,
+        p_condition    VARCHAR2,
+        p_bottom_row   sys.odcivarchar2list,
+        p_top_row      sys.odcivarchar2list,
+        p_bottom_info  pallet_info_list,
+        p_top_info     pallet_info_list
+    );
+
+    PROCEDURE p_vmi_transfer_to_urecship;
+
+    PROCEDURE p_vmi_optimize_load;
+    
+    --Script 3---
+    --PROCEDURE p_vmi_create_priority_shift_pallets;
+    
+    PROCEDURE p_vmi_elligible_loads;
+
+    PROCEDURE p_vmi_calculate_src_wgts (
+        p_sourcingid NUMBER
+    );
+
+    PROCEDURE p_vmi_init_item_constr;
+    PROCEDURE p_vmi_calculate_utilization_trucks;
+
+    PROCEDURE p_vmi_update_truck_item_capacity (
+        p_u_stackabilitytype VARCHAR2
+    );
+    
+    
+    PROCEDURE p_vmi_hub_merge_partial_pallets(
+        p_sourcingid IN NUMBER,
+        p_condition IN VARCHAR2 DEFAULT 'FIRST',
+        p_tolerance IN FLOAT DEFAULT 0.0001
+    );
+
+    PROCEDURE p_vmi_process_priority_shift;
+
+    PROCEDURE p_vmi_prepare_priority_shift_pallets (
+        p_sourcingid NUMBER,
+        p_loadid     NUMBER,
+        p_u_variant_type_desc VARCHAR2,
+        p_u_priority NUMBER
+    );
+
+    PROCEDURE p_vmi_apply_priority_shift_rules;
+
+    PROCEDURE p_vmi_create_priority_shift_trucks (
+        p_sourcingid NUMBER
+    );
+
+    PROCEDURE p_vmi_store_results (
+        p_sourcingid   NUMBER,
+        p_truck_number NUMBER,
+        p_bottom_row   IN sys.odcivarchar2list,
+        p_top_row      IN sys.odcivarchar2list,
+        p_bottom_info  IN pallet_list_info,
+        p_top_info     IN pallet_list_info,
+        p_utilization  NUMBER,
+        p_condition    VARCHAR2,
+        max_pallets    NUMBER
+    );
+
+    PROCEDURE p_vmi_store_results_for_all_trucks (
+        p_sourcingid   NUMBER,
+        p_total_trucks NUMBER,
+        max_pallets    NUMBER
+    );
+    
+    PROCEDURE p_vmi_merge_load;
+    
+    -------script 4-----------
+
+    PROCEDURE p_vmi_update_salesunits_qty_sourcing;
+
+    PROCEDURE p_vmi_delete_mincapacity;
+
+    PROCEDURE p_vmi_update_schedarrivdate_schedshipdate;
+    
+    PROCEDURE p_vmi_insert_vl_vll;
+    
+    -- Function declarations
+    FUNCTION f_vmi_get_truck_current_pallets (
+        p_sourcingid NUMBER,
+        p_loadid     NUMBER,
+        p_u_priority NUMBER
+    ) RETURN NUMBER;
+    
+    FUNCTION f_vmi_get_truck_current_weight (
+        p_sourcingid NUMBER,
+        p_loadid     NUMBER,
+        p_u_priority NUMBER
+    ) RETURN FLOAT;
+    
+    FUNCTION f_vmi_chk_cal_avl_shipdate (
+        p_cal IN VARCHAR2,
+        p_schedshipdate IN DATE,
+        p_schedarrivdate IN DATE,
+        p_buffer_days IN NUMBER
+    ) RETURN DATE;
+    
+    FUNCTION f_vmi_chk_cal_avl_arrivcal (
+        p_cal IN VARCHAR2,
+        p_schedshipdate IN DATE,
+        p_schedarrivdate IN DATE,
+        p_buffer_days IN NUMBER
+    ) RETURN DATE;
+    
+    FUNCTION is_arrival_open (
+        p_date      IN DATE,
+        p_arrivcal  IN VARCHAR2
+    ) RETURN BOOLEAN;
+    
+    FUNCTION is_shipping_open (
+        p_date     IN DATE,
+        p_shipcal  IN VARCHAR2
+    ) RETURN BOOLEAN;
+    
+    FUNCTION f_vmi_chk_avl_shipdate_arrivdate (
+        p_shipcal         IN VARCHAR2,
+        p_arrivcal        IN VARCHAR2,
+        p_needarrivdate   IN DATE,
+        p_u_dispatchdate  IN DATE,
+        p_transleadtime   IN NUMBER,
+        p_buffer_days     IN NUMBER DEFAULT 180
+    ) 
+    RETURN t_sched_dates_rec;
+    
+    FUNCTION f_vmi_get_pallet_weight (
+        p_is_full_pallet BOOLEAN,
+        p_ratio          NUMBER,
+        p_partial_su     NUMBER,
+        p_wgt            NUMBER
+    ) RETURN NUMBER;
+
+    FUNCTION f_vmi_can_stack_plnt (
+        bottom_color IN VARCHAR2,
+        top_color    IN VARCHAR2
+    ) RETURN BOOLEAN;
+
+    FUNCTION f_vmi_get_next_top_color (
+        bottom_color     IN VARCHAR2,
+        available_demand IN OUT demand_list
+    ) RETURN VARCHAR2;
+
+    FUNCTION f_vmi_seq_get_next_top_color (
+        bottom_color          IN VARCHAR2,
+        bottom_sourcingid_seq IN NUMBER,
+        available_demand      IN OUT demand_list
+    ) RETURN VARCHAR2;
+
+    FUNCTION f_vmi_is_stackable (
+        color IN VARCHAR2
+    ) RETURN BOOLEAN;
+
+    FUNCTION f_vmi_is_single_stack (
+        color IN VARCHAR2
+    ) RETURN BOOLEAN;
+
+    FUNCTION f_vmi_has_remaining_demand (
+        available_demand IN demand_list
+    ) RETURN BOOLEAN;
+
+    FUNCTION f_vmi_calculate_utilization_plnt (
+        p_bottom_row IN sys.odcivarchar2list,
+        p_top_row    IN sys.odcivarchar2list,
+        max_pallets  NUMBER
+    ) RETURN NUMBER;
+
+    FUNCTION f_vmi_calculate_truck_utilization (
+        p_sourcingid NUMBER,
+        p_loadid     NUMBER
+    ) RETURN NUMBER;
+
+    FUNCTION f_vmi_can_add_pallet (
+        p_u_stackabilitytype VARCHAR2
+    ) RETURN BOOLEAN;
+    
+    FUNCTION get_color_priority(p_color VARCHAR2) RETURN NUMBER;
+    
+    PROCEDURE color_sort(p_low IN PLS_INTEGER, p_high IN PLS_INTEGER);
+    
+    PROCEDURE hub_color_sort(
+        p_pallets IN OUT pallet_list_info,
+        p_low IN PLS_INTEGER,
+        p_high IN PLS_INTEGER,
+        p_color_priority IN color_priority_map
+    );
+    
+    ---SCRIPT 3
+    FUNCTION f_vmi_check_sourcingmin (
+        p_sourcingid NUMBER,
+        p_loadid     NUMBER,
+        p_u_variant_type_desc VARCHAR2,
+        p_u_priority NUMBER
+    ) RETURN BOOLEAN;
+
+    FUNCTION f_vmi_calculate_utilization_hub (
+        bottom_row  IN sys.odcivarchar2list,
+        top_row     IN sys.odcivarchar2list,
+        max_pallets NUMBER
+    ) RETURN NUMBER;
+
+    FUNCTION f_vmi_can_stack_hub (
+        bottom_color IN VARCHAR2,
+        top_color    IN VARCHAR2
+    ) RETURN BOOLEAN;
+    
+    
+    -- Main optimization procedure
+    PROCEDURE p_vmi_data_dump_udc_recship;
+    PROCEDURE p_vmi_stackability_logic;
+    PROCEDURE p_vmi_run_optimization;
+    /*
+    # Processes
+    P_VMI_BACKUPTABLES;
+    P_VMI_INTIALIZINGTHEVALUES;
+    P_VMI_CREATE_UDC_RECSHIP;
+    P_VMI_INSERT_INTO_UDCRECSHIP;
+    P_VMI_CREATE_PRIORITYSHIFT;
+    P_VMI_INSERT_INTO_PRIORITYSHIFT;
+    P_VMI_CREATE_DYNAMIC_COLUMNS_UDCRESHIP;
+    P_VMI_UPDATE_UDC_RECSHIP;
+    P_VMI_CREATE_U_RECSHIP;
+    P_VMI_CREATE_TEMP_VISULAIZATION_RESULTS;
+    P_VMI_optimize_load;
+    P_VMI_DELETE_MINCAPACITY;
+    P_VMI_CREATE_PRIORITY_SHIFT_PALLETS;
+    P_VMI_process_priority_shift;
+    P_VMI_UPDATE_SALESUNITS_QTY_SOURCING;
+    P_VMI_DELETE_MINCAPACITY;
+    P_VMI_UPDATE_SCHEDARRIVDATE_schedshipdate;
+    P_VMI_INSERT_VL_VLL;
+    */
+    
+    /*
+    # Tables list
+    select * from batchmgr.udc_recship;
+    select * from batchmgr.priority_shift;
+    select * from batchmgr.u_recship;
+    select * from batchmgr.temp_visualization_results;
+    select * from batchmgr.priority_shift_pallets;
+    
+    GRANT ALL ON SCPOMGR.recship_prebkp TO BATCHMGR;
+    GRANT ALL ON SCPOMGR.udc_recship_prebkp TO BATCHMGR;
+    GRANT ALL ON SCPOMGR.u_recship_prebkp TO BATCHMGR;
+    GRANT ALL ON SCPOMGR.Vehicleload_prebkp TO BATCHMGR;
+    GRANT ALL ON SCPOMGR.Vehicleloadline_prebkp TO BATCHMGR;
+    
+    GRANT ALL ON SCPOMGR.temp_visualization_results TO BATCHMGR;
+    GRANT ALL ON SCPOMGR.udc_recship TO BATCHMGR;
+    GRANT ALL ON SCPOMGR.priority_shift TO BATCHMGR;
+    GRANT ALL ON SCPOMGR.u_recship TO BATCHMGR;
+    GRANT ALL ON SCPOMGR.priority_shift_pallets TO BATCHMGR;
+    GRANT ALL ON SCPOMGR.udc TO BATCHMGR;
+    GRANT ALL ON SCPOMGR.uom_ratios TO BATCHMGR;
+    GRANT ALL ON SCPOMGR.priority_list TO BATCHMGR;
+    */
+
+END us_vmi_stackability;
